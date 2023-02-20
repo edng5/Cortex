@@ -2,7 +2,7 @@ import discord
 import requests
 
 client = discord.Client()
-API_KEY = 'your_google_api_key'
+API_KEY = 'GOOGLE_API_KEY'
 
 @client.event
 async def on_ready():
@@ -38,4 +38,4 @@ def get_answer(query):
     else:
         return 'Sorry, I could not find an answer to your question.'
 
-client.run('your_discord_bot_token')
+client.run('DISCORD API KEY')
