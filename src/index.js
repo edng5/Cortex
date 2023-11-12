@@ -22,6 +22,8 @@ client.on('ready', (c) => {
 });
 
 client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+
   if (message.content.includes('cortex') || message.content.includes('Cortex')) {
     await message.channel.sendTyping();
 
