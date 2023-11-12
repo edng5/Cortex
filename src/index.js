@@ -24,6 +24,17 @@ client.on('ready', (c) => {
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
 
+  if ((message.content.includes('cortex') || message.content.includes('Cortex')) && message.content.includes('generate image')){
+    const response = await openai.images.generate({
+      model: "dall-e-2",
+      prompt: message.content,
+      n: 1,
+      size: "1024x1024",
+    }).catch((error) => console.error('OpenAI Error:\n', error));
+    message.reply("Here you go!\n" + response.data[0].url);
+    return;
+  }
+
   if (message.content.includes('cortex') || message.content.includes('Cortex')) {
     await message.channel.sendTyping();
 
@@ -57,9 +68,23 @@ client.on('messageCreate', async (message) => {
     clearInterval(sendTypingInterval);
 
     if (!response) {
-      message.reply("Brain's foggy... Ask me again in a second.");
+      message.reply("I'm taking a nap, the noggin's foggy... Ask again later...");
       return;
     }
+    if (response.choices[0].message.content.length > 2000){
+      let long_message = response.choices[0].message.content.split(" ");
+      let temp_message = ''
+      for (let i = 0; i < long_message.length; i++){
+        temp_message += long_message[i] + " ";
+        if (temp_message.length > 1950){
+          message.reply(temp_message);
+          temp_message = ''
+        }
+      }
+      message.reply(temp_message);
+      return;
+    }
+
     message.reply(response.choices[0].message.content);
   }
   return;
