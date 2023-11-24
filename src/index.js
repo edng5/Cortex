@@ -40,10 +40,6 @@ client.on('messageCreate', async (message) => {
       clearInterval(sendTypingInterval);
       return;
     }
-
-    // if (message.content.includes('make announcement') || message.content.includes('set reminder')){
-    //   let seconds, event = scheduleParser(message.content)
-    // }
     
     let conversation = [];
     conversation.push({"role": "system", "content": 'Chat GPT is a friendly chatbot named Cortex'});
