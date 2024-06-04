@@ -21,11 +21,17 @@ function remove_stopwords(str) {
 }  
 
 var scrapeImage = async(image_query) => {
+  try {
   image_query = remove_stopwords(image_query)
   let i = 10
   const image_results = await images_scraper.scrape(image_query, i);
+  console.log(image_results)
   let x = parseInt(Math.random() * (i - 1));
   return image_results[x].url
+  } catch{
+    console.log("Unable to fetch image.")
+  }
+  return "https://lh6.googleusercontent.com/Bu-pRqU_tWZV7O3rJ5nV1P6NjqFnnAs8kVLC5VGz_Kf7ws0nDUXoGTc7pP87tyUCfu8VyXi0YviIm7CxAISDr2lJSwWwXQxxz98qxVfMcKTJfLPqbcfhn-QEeOowjrlwX1LYDFJN";
 }
 
 module.exports = {
