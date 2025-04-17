@@ -1,0 +1,45 @@
+**Available Commands:**
+
+1. **!set_reminder**
+   - Sets a reminder for a specific date and time.
+   - **Usage**: `!set_reminder <date/time> - <message> [-e]`
+   - **Example**: 
+     - `!set_reminder 2025-04-18 14:30 - Attend the meeting`
+     - `!set_reminder 2025-04-18 14:30 - Attend the meeting` (🚨)
+
+2. **!play_music**
+   - Plays a song in the user's current voice channel based on the provided title and artist.
+   - **Usage**: `!play_music <title> - <artist>`
+   - **Example**: `!play_music Shape of You - Ed Sheeran`
+
+3. **!find_video**
+   - Searches YouTube for videos based on a query and returns the top 5 results.
+   - **Usage**: `!find_video <search query>`
+   - **Example**: `!find_video lo-fi beats`
+
+4. **!find_song**
+   - Finds a song based on provided lyrics.
+   - **Usage**: `!find_song <lyrics>`
+   - **Example**: `!find_song I got a feeling that tonight's gonna be a good night`
+
+5. **!check_mute_time**
+   - Checks the total mute time for a user for the current day.
+   - **Usage**: `!check_mute_time <username>`
+   - **Example**: `!check_mute_time JohnDoe`
+
+6. **!check_muted**
+   - Checks if a user is currently muted and for how long.
+   - **Usage**: `!check_muted <username>`
+   - **Example**: `!check_muted JohnDoe`
+
+**Additional Features:**
+- **Image Generation**:
+  - **Trigger**: Messages containing phrases like "generate image", "show picture", or "show me".
+  - **Description**: Generates an image based on the provided query.
+  - **Example**: `Cortex, generate image of a sunset over mountains.`
+
+- **Chatbot Responses**:
+  - **Trigger**: Messages containing "cortex" or "Cortex".
+  - **Description**: Responds to user messages using OpenAI's GPT model.
+
+Type `!help` anytime to see this list again!
