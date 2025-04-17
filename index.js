@@ -1,4 +1,4 @@
-const { Client, IntentsBitField } = require('discord.js');
+const { Client, IntentsBitField, EmbedBuilder } = require('discord.js');
 require("dotenv").config();
 const { OpenAI } = require("openai");
 const { scrapeImage } = require("./commands/imageScraper.js")
@@ -8,21 +8,96 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const mutedUsers = new Map(); // Tracks when a user mutes themselves
+const dailyMuteTime = new Map(); // Tracks total mute time for each user in a day
+
 const client = new Client({
   intents: [
     IntentsBitField.Flags.Guilds,
     IntentsBitField.Flags.GuildMembers,
     IntentsBitField.Flags.GuildMessages,
     IntentsBitField.Flags.MessageContent,
+    IntentsBitField.Flags.GuildVoiceStates, // Required for monitoring voice states
   ]
-})
+});
 
 client.on('ready', (c) => {
   console.log(`${c.user.tag} is online.`);
 });
 
+// Function to send embedded logs
+async function sendMuteLog(member, action, duration = null) {
+  const logChannel = member.guild.channels.cache.find(channel => channel.name === 'mute-logs');
+  if (!logChannel) return; // Exit if the log channel doesn't exist
+
+  // Calculate cumulative mute time for the day
+  const totalMuteTime = dailyMuteTime.get(member.id) || 0;
+
+  const embed = new EmbedBuilder()
+    .setColor(action === 'muted' ? 0xff0000 : 0x00ff00) // Red for mute, green for unmute
+    .setTitle(`User ${action}`)
+    .setDescription(`${member.user.tag} (${member.id})`)
+    .setTimestamp();
+
+  if (action === 'muted') {
+    embed.addFields(
+      { name: 'Action', value: 'Muted', inline: true },
+      { name: 'Cumulative Mute Time Today', value: `${Math.floor(totalMuteTime / 1000)} seconds`, inline: true }
+    );
+  }
+
+  if (action === 'unmuted' && duration !== null) {
+    embed.addFields(
+      { name: 'Action', value: 'Unmuted', inline: true },
+      { name: 'Current Mute Duration', value: `${Math.floor(duration / 1000)} seconds`, inline: true },
+      { name: 'Cumulative Mute Time Today', value: `${Math.floor(totalMuteTime / 1000)} seconds`, inline: true }
+    );
+  }
+
+  await logChannel.send({ embeds: [embed] });
+}
+
+client.on('voiceStateUpdate', async (oldState, newState) => {
+  const userId = newState.id;
+
+  // Check if the user joined a voice channel
+  if (!oldState.channelId && newState.channelId) {
+    console.log(`${newState.member.user.tag} joined the voice channel.`);
+  }
+
+  // Check if the user is muted
+  if (!oldState.selfMute && newState.selfMute) {
+    mutedUsers.set(userId, Date.now());
+    console.log(`${newState.member.user.tag} is now muted.`);
+
+    // Send mute log
+    await sendMuteLog(newState.member, 'muted');
+  }
+
+  // Check if the user is unmuted
+  if (oldState.selfMute && !newState.selfMute) {
+    if (mutedUsers.has(userId)) {
+      const mutedDuration = Date.now() - mutedUsers.get(userId);
+      mutedUsers.delete(userId);
+
+      // Update the user's total mute time for the day
+      const currentMuteTime = dailyMuteTime.get(userId) || 0;
+      const updatedMuteTime = currentMuteTime + mutedDuration;
+      dailyMuteTime.set(userId, updatedMuteTime);
+
+      console.log(`${newState.member.user.tag} was muted for ${Math.floor(mutedDuration / 1000)} seconds.`);
+      console.log(`Cumulative mute time for ${newState.member.user.tag}: ${Math.floor(updatedMuteTime / 1000)} seconds.`);
+
+      // Send unmute log
+      await sendMuteLog(newState.member, 'unmuted', mutedDuration);
+    }
+  }
+});
+
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
+
+  console.log('mutedUsers:', mutedUsers); // Debugging log to ensure mutedUsers is accessible
 
   if (message.content.includes('cortex') || message.content.includes('Cortex')){
     await message.channel.sendTyping();
@@ -41,7 +116,7 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
-    // if (message.content.includes('make announcement') || message.content.includes('set reminder')){
+// if (message.content.includes('make announcement') || message.content.includes('set reminder')){
     //   let seconds, event = scheduleParser(message.content)
     // }
     
@@ -89,6 +164,47 @@ client.on('messageCreate', async (message) => {
     }
     message.channel.send(response.choices[0].message.content);
   }
+
+  // Command to check total mute time for the day
+  if (message.content.startsWith('!check_mute_time')) {
+    const args = message.content.split(' ');
+    const username = args[1];
+
+    if (!username) {
+      return message.channel.send('Please specify a username. Usage: `!check_mute_time <username>`');
+    }
+
+    const member = message.guild.members.cache.find(m => m.user.username === username);
+    if (!member) {
+      return message.channel.send(`User ${username} not found.`);
+    }
+
+    const totalMuteTime = dailyMuteTime.get(member.id) || 0;
+    return message.channel.send(`${username} has been muted for a total of ${Math.floor(totalMuteTime / 1000)} seconds today.`);
+  }
+
+  // Command to check current mute duration
+  if (message.content.startsWith('!check_muted')) {
+    const args = message.content.split(' ');
+    const username = args[1];
+
+    if (!username) {
+      return message.channel.send('Please specify a username. Usage: `!check_muted <username>`');
+    }
+
+    const member = message.guild.members.cache.find(m => m.user.username === username);
+    if (!member) {
+      return message.channel.send(`User ${username} not found.`);
+    }
+
+    if (mutedUsers.has(member.id)) {
+      const mutedDuration = Date.now() - mutedUsers.get(member.id);
+      return message.channel.send(`${username} has been muted for ${Math.floor(mutedDuration / 1000)} seconds.`);
+    } else {
+      return message.channel.send(`${username} is not currently muted.`);
+    }
+  }
+
   return;
 });
 
