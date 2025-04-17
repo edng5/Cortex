@@ -1,7 +1,8 @@
 const { Client, IntentsBitField, EmbedBuilder } = require('discord.js');
 require("dotenv").config();
 const { OpenAI } = require("openai");
-const { scrapeImage } = require("./commands/imageScraper.js")
+const { scrapeImage } = require("./commands/imageScraper.js");
+const schedule = require('node-schedule'); // Import node-schedule for scheduling tasks
 
 // Initialize OpenAI using API Key
 const openai = new OpenAI({
@@ -206,6 +207,41 @@ client.on('messageCreate', async (message) => {
   }
 
   return;
+});
+
+// Function to parse and schedule reminders
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+
+  if (message.content.startsWith('!set_reminder')) {
+    const args = message.content.split(' ').slice(1).join(' ');
+
+    if (!args) {
+      return message.channel.send('Please specify the date, time, and reminder message. Usage: `!set_reminder <date/time> <message>`');
+    }
+
+    // Extract date/time and reminder message
+    const match = args.match(/^(.*?)(?:\s-\s)(.+)$/);
+    if (!match) {
+      return message.channel.send('Invalid format. Use: `!set_reminder <date/time> - <message>`');
+    }
+
+    const dateTimeInput = match[1];
+    const reminderMessage = match[2];
+
+    // Parse the date and time
+    const reminderDate = new Date(dateTimeInput);
+    if (isNaN(reminderDate)) {
+      return message.channel.send('Invalid date/time format. Please try again.');
+    }
+
+    // Schedule the reminder
+    schedule.scheduleJob(reminderDate, () => {
+      message.channel.send(`⏰ Reminder: ${reminderMessage}`);
+    });
+
+    return message.channel.send(`Reminder set for ${reminderDate.toLocaleString()}: "${reminderMessage}"`);
+  }
 });
 
 client.login(process.env.DISCORD_API_KEY);
