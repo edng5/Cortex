@@ -217,17 +217,23 @@ client.on('messageCreate', async (message) => {
     const args = message.content.split(' ').slice(1).join(' ');
 
     if (!args) {
-      return message.channel.send('Please specify the date, time, and reminder message. Usage: `!set_reminder <date/time> <message>`');
+      return message.channel.send('Please specify the date, time, and reminder message. Usage: `!set_reminder <date/time> - <message> [-e]`');
     }
 
-    // Extract date/time and reminder message
-    const match = args.match(/^(.*?)(?:\s-\s)(.+)$/);
+    // Extract date/time, reminder message, and optional @everyone flag
+    const match = args.match(/^(.*?)(?:\s-\s)(.+?)(?:\s-\s-e)?$/);
     if (!match) {
-      return message.channel.send('Invalid format. Use: `!set_reminder <date/time> - <message>`');
+      return message.channel.send('Invalid format. Use: `!set_reminder <date/time> - <message> [-e]`');
     }
 
     const dateTimeInput = match[1];
-    const reminderMessage = match[2];
+    let reminderMessage = match[2];
+    const mentionEveryone = args.endsWith('-e'); // Check if the command ends with `-e`
+
+    // Remove the `-e` flag from the message if present
+    if (mentionEveryone) {
+      reminderMessage = reminderMessage.replace(/\s-\s-e$/, '');
+    }
 
     // Parse the date and time
     const reminderDate = new Date(dateTimeInput);
@@ -237,10 +243,13 @@ client.on('messageCreate', async (message) => {
 
     // Schedule the reminder
     schedule.scheduleJob(reminderDate, () => {
-      message.channel.send(`⏰ Reminder: ${reminderMessage}`);
+      const reminderText = mentionEveryone
+        ? `@everyone ⏰ Reminder: ${reminderMessage}`
+        : `⏰ Reminder: ${reminderMessage}`;
+      message.channel.send(reminderText);
     });
 
-    return message.channel.send(`Reminder set for ${reminderDate.toLocaleString()}: "${reminderMessage}"`);
+    return message.channel.send(`Reminder set for ${reminderDate.toLocaleString()}: "${reminderMessage}"${mentionEveryone ? ' (🚨)' : ''}`);
   }
 });
 
