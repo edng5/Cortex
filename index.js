@@ -3,6 +3,10 @@ require("dotenv").config();
 const { OpenAI } = require("openai");
 const { scrapeImage } = require("./commands/imageScraper.js");
 const schedule = require('node-schedule'); // Import node-schedule for scheduling tasks
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus } = require('@discordjs/voice');
+const play = require('play-dl'); // For fetching audio streams
+const fs = require('fs'); // Import the file system module
+const axios = require('axios'); // For making API requests
 
 // Initialize OpenAI using API Key
 const openai = new OpenAI({
@@ -250,6 +254,183 @@ client.on('messageCreate', async (message) => {
     });
 
     return message.channel.send(`Reminder set for ${reminderDate.toLocaleString()}: "${reminderMessage}"${mentionEveryone ? ' (🚨)' : ''}`);
+  }
+});
+
+// Function to play music
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+
+  if (message.content.startsWith('!play_music')) {
+    const args = message.content.split(' ').slice(1).join(' ');
+
+    if (!args) {
+      return message.channel.send('Please specify the song title and artist. Usage: `!play_music <title> - <artist>`');
+    }
+
+    // Extract title and artist
+    const match = args.match(/^(.*?)(?:\s-\s)(.+)$/);
+    if (!match) {
+      return message.channel.send('Invalid format. Use: `!play_music <title> - <artist>`');
+    }
+
+    const title = match[1];
+    const artist = match[2];
+
+    // Check if the user is in a voice channel
+    const voiceChannel = message.member.voice.channel;
+    if (!voiceChannel) {
+      return message.channel.send('You need to be in a voice channel to play music!');
+    }
+
+    try {
+      // Search for the song on YouTube
+      const searchQuery = `${title} ${artist}`;
+      const searchResults = await play.search(searchQuery, { limit: 1 });
+      if (searchResults.length === 0) {
+        return message.channel.send('No results found for the specified song.');
+      }
+
+      const song = searchResults[0];
+      const stream = await play.stream(song.url);
+
+      // Join the voice channel
+      const connection = joinVoiceChannel({
+        channelId: voiceChannel.id,
+        guildId: message.guild.id,
+        adapterCreator: message.guild.voiceAdapterCreator,
+      });
+
+      // Handle connection state changes
+      connection.on(VoiceConnectionStatus.Ready, () => {
+        console.log('The bot is connected to the voice channel!');
+      });
+
+      connection.on(VoiceConnectionStatus.Disconnected, async () => {
+        try {
+          await Promise.race([
+            entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+            entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+          ]);
+        } catch (error) {
+          connection.destroy();
+        }
+      });
+
+      // Create an audio player and play the song
+      const player = createAudioPlayer();
+      const resource = createAudioResource(stream.stream, { inputType: stream.type });
+
+      player.play(resource);
+      connection.subscribe(player);
+
+      message.channel.send(`🎵 Now playing: **${song.title}** by **${artist}**`);
+
+      // Handle player events
+      player.on(AudioPlayerStatus.Idle, () => {
+        connection.destroy(); // Leave the voice channel when the song ends
+        console.log('The bot has left the voice channel.');
+      });
+
+      player.on('error', (error) => {
+        console.error('Error playing audio:', error);
+        message.channel.send('An error occurred while playing the song.');
+        connection.destroy();
+      });
+    } catch (error) {
+      console.error('Error fetching or playing music:', error);
+      message.channel.send('An error occurred while trying to play the song.');
+    }
+  }
+});
+
+// Function to find YouTube videos
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+
+  if (message.content.startsWith('!find_video')) {
+    const query = message.content.split(' ').slice(1).join(' ');
+
+    if (!query) {
+      return message.channel.send('Please provide a search query. Usage: `!find_video <search query>`');
+    }
+
+    try {
+      // Search for YouTube videos using play-dl
+      const searchResults = await play.search(query, { limit: 5 }); // Limit to 5 results
+      if (searchResults.length === 0) {
+        return message.channel.send('No videos found for the given query.');
+      }
+
+      // Format the results into a message
+      let response = '🎥 **Top YouTube Results:**\n';
+      searchResults.forEach((video, index) => {
+        response += `${index + 1}. [${video.title}](${video.url})\n`;
+      });
+
+      return message.channel.send(response);
+    } catch (error) {
+      console.error('Error fetching YouTube videos:', error);
+      return message.channel.send('An error occurred while searching for videos. Please try again later.');
+    }
+  }
+});
+
+// Function to find a song based on lyrics
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+
+  if (message.content.startsWith('!find_song')) {
+    const lyrics = message.content.split(' ').slice(1).join(' ');
+
+    if (!lyrics) {
+      return message.channel.send('Please provide some lyrics to search for. Usage: `!find_song <lyrics>`');
+    }
+
+    try {
+      // Replace 'YOUR_GENIUS_API_KEY' with your Genius API key
+      const apiKey = process.env.GENIUS_API_KEY;
+      const response = await axios.get('https://api.genius.com/search', {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+        params: {
+          q: lyrics,
+        },
+      });
+
+      const hits = response.data.response.hits;
+
+      if (hits.length === 0) {
+        return message.channel.send('No songs found matching those lyrics.');
+      }
+
+      const song = hits[0].result;
+      const songTitle = song.title;
+      const songArtist = song.primary_artist.name;
+      const songUrl = song.url;
+
+      return message.channel.send(`🎵 Found a song: **${songTitle}** by **${songArtist}**\nMore info: ${songUrl}`);
+    } catch (error) {
+      console.error('Error fetching song from Genius API:', error);
+      return message.channel.send('An error occurred while searching for the song. Please try again later.');
+    }
+  }
+});
+
+// Command to list all available commands
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+
+  if (message.content.startsWith('!help')) {
+    try {
+      // Read the contents of command-list.txt
+      const commandsList = fs.readFileSync('./command-list.txt', 'utf8');
+      return message.channel.send(commandsList);
+    } catch (error) {
+      console.error('Error reading command-list.txt:', error);
+      return message.channel.send('An error occurred while fetching the command list. Please try again later.');
+    }
   }
 });
 
