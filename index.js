@@ -50,11 +50,8 @@ async function sendMuteLog(member, action, duration = null) {
     embed.addFields(
       { name: 'Action', value: 'Unmuted', inline: true },
       { name: 'Current Mute Duration', value: `${Math.floor(duration / 1000)} seconds`, inline: true },
-      { name: 'Cumulative Mute Time Today', value: `${Math.floor((totalMuteTime + duration) / 1000)} seconds`, inline: true }
+      { name: 'Cumulative Mute Time Today', value: `${Math.floor(totalMuteTime / 1000)} seconds`, inline: true }
     );
-
-    // Update the cumulative mute time for the day
-    dailyMuteTime.set(member.id, totalMuteTime + duration);
   }
 
   await logChannel.send({ embeds: [embed] });
@@ -85,9 +82,11 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
 
       // Update the user's total mute time for the day
       const currentMuteTime = dailyMuteTime.get(userId) || 0;
-      dailyMuteTime.set(userId, currentMuteTime + mutedDuration);
+      const updatedMuteTime = currentMuteTime + mutedDuration;
+      dailyMuteTime.set(userId, updatedMuteTime);
 
       console.log(`${newState.member.user.tag} was muted for ${Math.floor(mutedDuration / 1000)} seconds.`);
+      console.log(`Cumulative mute time for ${newState.member.user.tag}: ${Math.floor(updatedMuteTime / 1000)} seconds.`);
 
       // Send unmute log
       await sendMuteLog(newState.member, 'unmuted', mutedDuration);
