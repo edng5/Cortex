@@ -8,6 +8,8 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const mutedUsers = new Map(); // Define mutedUsers as a Map to track muted users
+
 const client = new Client({
   intents: [
     IntentsBitField.Flags.Guilds,
@@ -48,6 +50,8 @@ client.on('voiceStateUpdate', (oldState, newState) => {
 
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
+
+  console.log('mutedUsers:', mutedUsers); // Debugging log to ensure mutedUsers is accessible
 
   if (message.content.includes('cortex') || message.content.includes('Cortex')){
     await message.channel.sendTyping();
@@ -116,12 +120,12 @@ client.on('messageCreate', async (message) => {
   }
 
   // Command to check muted duration
-  if (message.content.startsWith('check_muted')) {
+  if (message.content.startsWith('!check_muted')) {
     const args = message.content.split(' ');
     const username = args[1];
 
     if (!username) {
-      return message.channel.send('Please specify a username. Usage: `check_muted <username>`');
+      return message.channel.send('Please specify a username. Usage: `!check_muted <username>`');
     }
 
     const member = message.guild.members.cache.find(m => m.user.username === username);
