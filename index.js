@@ -14,11 +14,36 @@ const client = new Client({
     IntentsBitField.Flags.GuildMembers,
     IntentsBitField.Flags.GuildMessages,
     IntentsBitField.Flags.MessageContent,
+    IntentsBitField.Flags.GuildVoiceStates, // Required for monitoring voice states
   ]
 })
 
 client.on('ready', (c) => {
   console.log(`${c.user.tag} is online.`);
+});
+
+client.on('voiceStateUpdate', (oldState, newState) => {
+  const userId = newState.id;
+
+  // Check if the user joined a voice channel
+  if (!oldState.channelId && newState.channelId) {
+    console.log(`${newState.member.user.tag} joined the voice channel.`);
+  }
+
+  // Check if the user is muted
+  if (!oldState.selfMute && newState.selfMute) {
+    mutedUsers.set(userId, Date.now());
+    console.log(`${newState.member.user.tag} is now muted.`);
+  }
+
+  // Check if the user is unmuted
+  if (oldState.selfMute && !newState.selfMute) {
+    if (mutedUsers.has(userId)) {
+      const mutedDuration = Date.now() - mutedUsers.get(userId);
+      mutedUsers.delete(userId);
+      console.log(`${newState.member.user.tag} was muted for ${Math.floor(mutedDuration / 1000)} seconds.`);
+    }
+  }
 });
 
 client.on('messageCreate', async (message) => {
@@ -41,7 +66,7 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
-    // if (message.content.includes('make announcement') || message.content.includes('set reminder')){
+// if (message.content.includes('make announcement') || message.content.includes('set reminder')){
     //   let seconds, event = scheduleParser(message.content)
     // }
     
@@ -89,6 +114,29 @@ client.on('messageCreate', async (message) => {
     }
     message.channel.send(response.choices[0].message.content);
   }
+
+  // Command to check muted duration
+  if (message.content.startsWith('check_muted')) {
+    const args = message.content.split(' ');
+    const username = args[1];
+
+    if (!username) {
+      return message.channel.send('Please specify a username. Usage: `check_muted <username>`');
+    }
+
+    const member = message.guild.members.cache.find(m => m.user.username === username);
+    if (!member) {
+      return message.channel.send(`User ${username} not found.`);
+    }
+
+    if (mutedUsers.has(member.id)) {
+      const mutedDuration = Date.now() - mutedUsers.get(member.id);
+      return message.channel.send(`${username} has been muted for ${Math.floor(mutedDuration / 1000)} seconds.`);
+    } else {
+      return message.channel.send(`${username} is not currently muted.`);
+    }
+  }
+
   return;
 });
 
