@@ -32,14 +32,19 @@
    - **Usage**: `!check_muted <username>`
    - **Example**: `!check_muted JohnDoe`
 
+7. **!news**
+   - Fetches top news headlines or weather information based on the specified category and location.
+   - **Categories**: `business`, `entertainment`, `general`, `health`, `science`, `sports`, `technology`, `weather`
+   - **Usage**: `!news <category> [location]`
+   - **Examples**:
+     - `!news sports Canada` (Fetches sports news for Canada)
+     - `!news technology` (Fetches global technology news)
+     - `!news weather Toronto` (Fetches weather information for Toronto)
+
 **Additional Features:**
 - **Image Generation**:
   - **Trigger**: Messages containing phrases like "generate image", "show picture", or "show me".
   - **Description**: Generates an image based on the provided query.
-  - **Example**: `Cortex, generate image of a sunset over mountains.`
-
-- **Chatbot Responses**:
-  - **Trigger**: Messages containing "cortex" or "Cortex".
-  - **Description**: Responds to user messages using OpenAI's GPT model.
+  - **Example**: `Cortex, generate image of a sunset over mountains//
 
 Type `!help` anytime to see this list again!
