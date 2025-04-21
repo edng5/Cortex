@@ -7,6 +7,7 @@ const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerSta
 const play = require('play-dl'); // For fetching audio streams
 const fs = require('fs'); // Import the file system module
 const axios = require('axios'); // For making API requests
+const { getCode } = require('country-list'); // Import country-list for ISO code conversion
 
 // Initialize OpenAI using API Key
 const openai = new OpenAI({
@@ -414,6 +415,89 @@ client.on('messageCreate', async (message) => {
     } catch (error) {
       console.error('Error fetching song from Genius API:', error);
       return message.channel.send('An error occurred while searching for the song. Please try again later.');
+    }
+  }
+});
+
+// Function to fetch top news and weather
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+
+  if (message.content.startsWith('!news')) {
+    const args = message.content.split(' ').slice(1);
+    const category = args[0]?.toLowerCase(); // e.g., politics, stock, sports, science, technology, weather
+    let location = args.slice(1).join(' '); // e.g., "Canada"
+
+    if (!category) {
+      return message.channel.send('Please specify a category. Usage: `!news <category> [location]`');
+    }
+
+    try {
+      let responseMessage = '';
+
+      // Convert location to ISO code if it's not empty and longer than 2 characters
+      if (category !== 'weather' && location && location.length > 2) {
+        const isoCode = getCode(location);
+        if (!isoCode) {
+          return message.channel.send(`Unable to find ISO code for the location: **${location}**. Please check the location and try again.`);
+        }
+        location = isoCode.toLowerCase(); // Convert ISO code to lowercase for NewsAPI
+      }
+
+      // Fetch news headlines
+      if (category !== 'weather') {
+        const newsApiKey = process.env.NEWS_API_KEY; // Replace with your NewsAPI key
+        const newsParams = {
+          category: category,
+          apiKey: newsApiKey,
+        };
+
+        // If a location is provided, add the country parameter
+        if (location) {
+          newsParams.country = location; // Use the ISO code for location
+        }
+
+        const newsResponse = await axios.get('https://newsapi.org/v2/top-headlines', { params: newsParams });
+
+        const articles = newsResponse.data.articles.slice(0, 5); // Get top 5 articles
+        if (articles.length === 0) {
+          responseMessage += `No news found for category **${category}** in **${location || 'Global'}**.\n`;
+        } else {
+          responseMessage += `📰 **Top News in ${category} (${location || 'Global'}):**\n`;
+          articles.forEach((article, index) => {
+            responseMessage += `${index + 1}. [${article.title}](${article.url})\n`;
+          });
+        }
+      }
+
+      // Fetch weather information
+      if (category === 'weather') {
+        const weatherApiKey = process.env.WEATHER_API_KEY; // Replace with your Weatherstack API key
+        const weatherResponse = await axios.get('http://api.weatherstack.com/current', {
+          params: {
+            access_key: weatherApiKey,
+            query: location || 'Toronto', // Default to Toronto if no location is provided
+          },
+        });
+
+        const weatherData = weatherResponse.data;
+
+        if (weatherData.error) {
+          responseMessage += `\n🌤 Unable to fetch weather for **${location || 'default region'}**. Please check the location and try again.\n`;
+        } else {
+          responseMessage += `\n🌤 **Weather in ${weatherData.location.name}, ${weatherData.location.region}, ${weatherData.location.country}:**\n`;
+          responseMessage += `- Temperature: ${weatherData.current.temperature}°C\n`;
+          responseMessage += `- Weather: ${weatherData.current.weather_descriptions[0]}\n`;
+          responseMessage += `- Humidity: ${weatherData.current.humidity}%\n`;
+          responseMessage += `- Wind Speed: ${weatherData.current.wind_speed} km/h\n`;
+          responseMessage += `- Feels Like: ${weatherData.current.feelslike}°C\n`;
+        }
+      }
+
+      return message.channel.send(responseMessage);
+    } catch (error) {
+      console.error('Error fetching news or weather:', error);
+      return message.channel.send('An error occurred while fetching the news or weather. Please try again later.');
     }
   }
 });
