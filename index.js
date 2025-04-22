@@ -1,6 +1,7 @@
 const { Client, IntentsBitField } = require('discord.js');
 require('dotenv').config();
 const fs = require('fs'); // For reading command files
+const muted = require('./commands/muted.js');
 
 // Initialize the bot
 const client = new Client({
@@ -43,6 +44,21 @@ client.on('messageCreate', async (message) => {
       message.reply('There was an error executing that command.');
     }
   }
+
+  if (message.content.startsWith('!check_mute_time')) {
+    const args = message.content.split(' ').slice(1);
+    await muted.checkMuteTime(message, args);
+  }
+
+  if (message.content.startsWith('!check_muted')) {
+    const args = message.content.split(' ').slice(1);
+    await muted.checkMuted(message, args);
+  }
+});
+
+// Event: Handle voice state updates
+client.on('voiceStateUpdate', (oldState, newState) => {
+  muted.handleVoiceStateUpdate(oldState, newState, client);
 });
 
 // Login to Discord
