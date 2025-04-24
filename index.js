@@ -2,6 +2,8 @@ const { Client, IntentsBitField } = require('discord.js');
 require('dotenv').config();
 const fs = require('fs'); // For reading command files
 const muted = require('./commands/muted.js');
+const pokeNewsRSS = require('./commands/PokeNewsRSS.js');
+const slightlyDelayedDrops = require('./commands/SlightlyDelayedDrops.js'); // Import SlightlyDelayedDrops.js
 
 // Initialize the bot
 const client = new Client({
@@ -26,6 +28,8 @@ for (const file of commandFiles) {
 // Event: Bot is ready
 client.on('ready', () => {
   console.log(`${client.user.tag} is online.`);
+  pokeNewsRSS.startPokeNewsFeed(client); // Start the PokeNews feed
+  slightlyDelayedDrops.startMonitoring(client); // Start monitoring SlightlyDelayedDrops
 });
 
 // Event: Handle messages
@@ -40,7 +44,7 @@ client.on('messageCreate', async (message) => {
     try {
       await command.execute(message, args);
     } catch (error) {
-      console.error(`Error executing command ${commandName}:`, error);
+      console.error(`Error executing ${commandName}:`, error);
       message.reply('There was an error executing that command.');
     }
   }
