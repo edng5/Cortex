@@ -26,10 +26,10 @@ async function startMonitoring(client) {
     const page = await browser.newPage();
 
     try {
-      await page.goto(THREADS_URL, { waitUntil: 'networkidle2' });
+      await page.goto(THREADS_URL, { waitUntil: 'networkidle2', timeout: 30000 }); // Set a timeout of 30 seconds
 
       // Wait for the first post to load
-      await page.waitForSelector('a[href^="/@celadonca/post/"]');
+      await page.waitForSelector('a[href^="/@celadonca/post/"]', { timeout: 10000 }); // Set a timeout for the selector
 
       // Extract the first post URL
       const postUrl = await page.$eval('a[href^="/@celadonca/post/"]', (link) => link.href);
@@ -37,8 +37,12 @@ async function startMonitoring(client) {
       await browser.close();
       return postUrl;
     } catch (error) {
-      console.error('Error scraping Threads page:', error);
+      console.error('Error scraping Threads page:', error.message);
+
+      // Close the browser in case of an error
       await browser.close();
+
+      // Return null to indicate failure
       return null;
     }
   }

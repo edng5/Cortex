@@ -89,6 +89,15 @@ module.exports = {
             - **Usage**: \`!stock <symbol>\`
             - **Example**: \`!stock AAPL\`
           `,
+          '!cortex': `
+            **!cortex**
+            - Interacts with Cortex, the AI chatbot.
+            - **Usage**: \`!cortex <message>\`
+            - **Example**: \`!cortex What's the weather today?\`
+            - **Note**: Cortex will respond once and will not continue the conversation unless you mention "Cortex" in your messages.
+            - To start a persistent conversation, simply mention "Cortex" in your message.
+            - To stop a persistent conversation, use phrases like "stop cortex" or "bye cortex."
+          `,
         };
 
         // Check if the requested command exists
