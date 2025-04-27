@@ -30,38 +30,38 @@ module.exports = {
             - **Example**: 
             - \`!set_reminder 2025-04-18 14:30 - Attend the meeting\`
             - \`!set_reminder 2025-04-18 14:30 - Attend the meeting -e\` (mentions @everyone)
-                    `,
-                    '!play_music': `
+          `,
+          '!play_music': `
             **!play_music**
             - Plays a song in the user's current voice channel based on the provided title and artist.
             - **Usage**: \`!play_music <title> - <artist>\`
             - **Example**: \`!play_music Shape of You - Ed Sheeran\`
-                    `,
-                    '!find_video': `
+          `,
+          '!find_video': `
             **!find_video**
             - Searches YouTube for videos based on a query and returns the top 5 results.
             - **Usage**: \`!find_video <search query>\`
             - **Example**: \`!find_video lo-fi beats\`
-                    `,
-                    '!find_song': `
+          `,
+          '!find_song': `
             **!find_song**
             - Finds a song based on provided lyrics.
             - **Usage**: \`!find_song <lyrics>\`
             - **Example**: \`!find_song I got a feeling that tonight's gonna be a good night\`
-                    `,
-                    '!check_mute_time': `
+          `,
+          '!check_mute_time': `
             **!check_mute_time**
             - Checks the total mute time for a user for the current day.
             - **Usage**: \`!check_mute_time <username>\`
             - **Example**: \`!check_mute_time JohnDoe\`
-                    `,
-                    '!check_muted': `
+          `,
+          '!check_muted': `
             **!check_muted**
             - Checks if a user is currently muted and for how long.
             - **Usage**: \`!check_muted <username>\`
             - **Example**: \`!check_muted JohnDoe\`
-                    `,
-                    '!news': `
+          `,
+          '!news': `
             **!news**
             - Fetches top news headlines or weather information based on the specified category and location.
             - **Categories**: \`business\`, \`entertainment\`, \`general\`, \`health\`, \`science\`, \`sports\`, \`technology\`, \`weather\`
@@ -70,12 +70,24 @@ module.exports = {
             - \`!news sports Canada\` (Fetches sports news for Canada)
             - \`!news technology\` (Fetches global technology news)
             - \`!news weather Toronto\` (Fetches weather information for Toronto)
-                    `,
-                    '!weather': `
+          `,
+          '!weather': `
             **!weather**
             - Fetches the current weather for a specified location.
             - **Usage**: \`!weather <location>\`
             - **Example**: \`!weather New York\`
+          `,
+          '!pokemon_card': `
+            **!pokemon_card**
+            - Analyzes Pokémon card price trends and predicts future prices.
+            - **Usage**: \`!pokemon_card <card name> <card number>\`
+            - **Example**: \`!pokemon_card Charizard EX 223\`
+          `,
+          '!stock': `
+            **!stock**
+            - Analyzes stock data and provides insights.
+            - **Usage**: \`!stock <symbol>\`
+            - **Example**: \`!stock AAPL\`
           `,
         };
 
