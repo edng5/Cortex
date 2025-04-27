@@ -1,12 +1,14 @@
 **Available Commands:**
 
-1. **!set_reminder**
-2. **!play_music**
-3. **!find_video**
-4. **!find_song**
-5. **!check_mute_time**
-6. **!check_muted**
-7. **!news**
-8. **!weather**
+1. **!set_reminder** - Sets a reminder for a specific date and time.
+2. **!play_music** - Plays a song in the user's current voice channel based on the provided title and artist.
+3. **!find_video** - Searches YouTube for videos based on a query and returns the top 5 results.
+4. **!find_song** - Finds a song based on provided lyrics.
+5. **!check_mute_time** - Checks the total mute time for a user for the current day.
+6. **!check_muted** - Checks if a user is currently muted and for how long.
+7. **!news** - Fetches top news headlines or weather information based on the specified category and location.
+8. **!weather** - Fetches the current weather for a specified location.
+9. **!pokemon_card** - Analyzes Pokémon card price trends and predicts future prices.
+10. **!stock** - Analyzes stock data and provides insights.
 
 Type `!help <command>` to get detailed information about a specific command.
