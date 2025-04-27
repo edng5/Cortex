@@ -3,18 +3,12 @@
  */
 
 const axios = require('axios'); // For making HTTP requests
+const Sentiment = require('sentiment'); // For sentiment analysis
 
 module.exports = {
   name: '!pokemon_card', // Command name to trigger this functionality
   description: 'Analyzes Pokémon card price trends and predicts future prices.',
 
-  /**
-   * Executes the !pokemon_card command.
-   * 
-   * @param {Object} message - The Discord message object.
-   * @param {Array} args - The arguments passed with the command. 
-   *                       args[0+] is the Pokémon card name and card number (e.g., "Charizard EX 223").
-   */
   async execute(message, args) {
     const cardName = args.slice(0, -1).join(' '); // Extract the card name (all but the last argument)
     const cardNumber = args[args.length - 1]; // Extract the card number (last argument)
@@ -54,6 +48,33 @@ module.exports = {
         }
       };
 
+      // Fetch news about the card's set
+      const fetchSetNews = async (setName) => {
+        const apiKey = process.env.NEWS_API_KEY; // Retrieve the API key from .env
+        if (!apiKey) {
+          console.error('News API key is missing in the .env file.');
+          return [];
+        }
+
+        const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(setName)}&apiKey=${apiKey}`;
+
+        try {
+          const response = await axios.get(url);
+          return response.data.articles.map((article) => article.title); // Extract headlines
+        } catch (error) {
+          console.error('Error fetching set news:', error.message);
+          return [];
+        }
+      };
+
+      // Perform sentiment analysis on set news
+      const analyzeSentiment = (headlines) => {
+        const sentiment = new Sentiment();
+        const scores = headlines.map((headline) => sentiment.analyze(headline).score);
+        const averageScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+        return averageScore; // Return average sentiment score
+      };
+
       // Convert USD to CAD
       const convertToCAD = async (usdPrice) => {
         const url = `https://api.exchangerate-api.com/v4/latest/USD`;
@@ -69,7 +90,7 @@ module.exports = {
       };
 
       // Simple linear regression for prediction
-      const predictNextPrice = (prices) => {
+      const predictNextPrice = (prices, sentimentScore) => {
         const x = Array.from({ length: prices.length }, (_, i) => i);
         const y = prices;
 
@@ -83,8 +104,10 @@ module.exports = {
         const intercept = (sumY - slope * sumX) / n;
 
         const nextX = prices.length;
-        const predictedPrice = slope * nextX + intercept;
+        let predictedPrice = slope * nextX + intercept;
 
+        // Adjust prediction based on sentiment score
+        predictedPrice *= 1 + sentimentScore * 0.05; // Adjust by 5% per sentiment point
         return predictedPrice;
       };
 
@@ -105,8 +128,12 @@ module.exports = {
         return message.channel.send(`Not enough historical data for price prediction. Current price for "${card.name}" is $${currentPrice.toFixed(2)} USD.`);
       }
 
+      // Fetch news about the card's set and analyze sentiment
+      const setNews = await fetchSetNews(card.set.name);
+      const sentimentScore = setNews.length > 0 ? analyzeSentiment(setNews) : 0;
+
       // Analyze card prices
-      const predictedNextPriceUSD = predictNextPrice(historicalPrices);
+      const predictedNextPriceUSD = predictNextPrice(historicalPrices, sentimentScore);
       const trend = predictedNextPriceUSD > currentPrice ? 'Upward 📈' : 'Downward 📉';
 
       // Calculate percentage change
@@ -116,9 +143,16 @@ module.exports = {
       const currentPriceCAD = await convertToCAD(currentPrice);
       const predictedNextPriceCAD = await convertToCAD(predictedNextPriceUSD);
 
-      // Send analysis to the Discord channel
+      // Send the analysis title
+      await message.channel.send(`📊 **Pokémon Card Analysis for "${card.name}"**`);
+
+      // Send the image separately if available
+      if (card.images?.large) {
+        await message.channel.send({ files: [card.images.large] });
+      }
+
+      // Send the detailed analysis response
       const response = `
-📊 **Pokémon Card Analysis for "${card.name}"**
 - **Set**: ${card.set.name}
 - **Rarity**: ${card.rarity}
 - **Card Number**: ${card.number}
@@ -126,9 +160,10 @@ module.exports = {
 - **Predicted Next Price**: $${predictedNextPriceCAD.toFixed(2)} CAD
 - **Trend Prediction**: ${trend}
 - **Percentage Change**: ${percentageChange.toFixed(2)}%
-      `;
+- **Set News Sentiment Score**: ${sentimentScore.toFixed(2)}
+`;
+      await message.channel.send(response);
 
-      message.channel.send(response);
     } catch (error) {
       console.error('Error analyzing Pokémon card:', error);
       message.channel.send('An error occurred while analyzing the Pokémon card. Please try again later.');
