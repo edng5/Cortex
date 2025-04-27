@@ -10,5 +10,6 @@
 8. **!weather** - Fetches the current weather for a specified location.
 9. **!pokemon_card** - Analyzes Pokémon card price trends and predicts future prices.
 10. **!stock** - Analyzes stock data and provides insights.
+11. **!cortex** - Interacts with Cortex, the AI chatbot. Mention "Cortex" in your messages to start a persistent conversation.
 
 Type `!help <command>` to get detailed information about a specific command.
