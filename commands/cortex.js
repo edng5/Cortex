@@ -22,7 +22,7 @@ const callOpenAPI = async (conversation) => {
 };
 
 module.exports = {
-  name: 'cortex', // Command name to trigger this functionality
+  name: '!cortex', // Command name to trigger this functionality
   description: 'Interacts with Cortex, the AI chatbot.',
   
   /**

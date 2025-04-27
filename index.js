@@ -44,7 +44,7 @@ client.on('messageCreate', async (message) => {
   const content = message.content.toLowerCase();
 
   // Stop phrases to end the conversation
-  const stopPhrases = ['stop cortex', 'bye cortex', 'leave me alone cortex', 'shut up cortex', 'thanks cortex'];
+  const stopPhrases = ['stop cortex', 'bye cortex', 'leave me alone cortex', 'shut up cortex'];
 
   // Check if the user wants to stop the conversation
   if (stopPhrases.some(phrase => content.includes(phrase))) {
@@ -52,6 +52,13 @@ client.on('messageCreate', async (message) => {
       activeConversations.delete(userId); // Remove the user from active conversations
       return message.reply('Alright, I’ll stop responding. Let me know if you need anything!');
     }
+  }
+
+  // Handle the !cortex command for one-time interaction
+  if (message.content.startsWith('!cortex')) {
+    const args = message.content.split(' ').slice(1);
+    await cortexCommand.execute(message, args); // Execute the Cortex command
+    return; // Do not add the user to active conversations
   }
 
   // Check if the message mentions "Cortex" (case-insensitive) or if the user is in an active conversation
@@ -66,14 +73,7 @@ client.on('messageCreate', async (message) => {
 
     // Call the Cortex command logic
     await cortexCommand.execute(message, args);
-    return; // Exit after handling the message
-  }
-
-  // Handle the !cortex command for one-time interaction
-  if (message.content.startsWith('!cortex')) {
-    const args = message.content.split(' ').slice(1);
-    await cortexCommand.execute(message, args);
-    return; // Do not add the user to active conversations
+    return;
   }
 
   // Handle other commands
@@ -90,6 +90,7 @@ client.on('messageCreate', async (message) => {
     }
   }
 
+  // Handle specific commands like !check_mute_time and !check_muted
   if (message.content.startsWith('!check_mute_time')) {
     const args = message.content.split(' ').slice(1);
     await muted.checkMuteTime(message, args);
