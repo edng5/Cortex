@@ -1,12 +1,14 @@
 /**
- * This module fetches stock data, calculates moving averages, detects crossovers, and predicts trends.
+ * This module fetches stock data, analyzes news sentiment, and predicts trends.
  */
 
 const axios = require('axios'); // For making HTTP requests
+const Sentiment = require('sentiment'); // For sentiment analysis
+require('dotenv').config(); // Load environment variables from .env
 
 module.exports = {
   name: '!stock', // Command name to trigger this functionality
-  description: 'Analyzes stock data and provides insights.',
+  description: 'Analyzes stock data, news sentiment, and provides insights.',
 
   /**
    * Executes the !stock command.
@@ -29,9 +31,7 @@ module.exports = {
 
         try {
           const response = await axios.get(url);
-          const timestamps = response.data.chart.result[0].timestamp;
           const prices = response.data.chart.result[0].indicators.quote[0].close;
-
           return prices.filter((p) => p !== null); // Filter out null prices
         } catch (error) {
           console.error('Error fetching stock data:', error);
@@ -39,36 +39,35 @@ module.exports = {
         }
       };
 
-      // Moving Average calculation
-      const movingAverage = (data, windowSize) => {
-        const averages = [];
-        for (let i = windowSize - 1; i < data.length; i++) {
-          const window = data.slice(i - windowSize + 1, i + 1);
-          const avg = window.reduce((a, b) => a + b, 0) / window.length;
-          averages.push(avg);
+      // Fetch recent news headlines
+      const fetchNewsHeadlines = async (symbol) => {
+        const apiKey = process.env.NEWS_API_KEY; // Retrieve the API key from .env
+        if (!apiKey) {
+          console.error('News API key is missing in the .env file.');
+          return [];
         }
-        return averages;
+
+        const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(symbol)}&apiKey=${apiKey}`;
+
+        try {
+          const response = await axios.get(url);
+          return response.data.articles.map((article) => article.title); // Extract headlines
+        } catch (error) {
+          console.error('Error fetching news headlines:', error.message);
+          return [];
+        }
       };
 
-      // Detect Golden Cross / Death Cross
-      const detectCross = (shortMA, longMA) => {
-        const n = Math.min(shortMA.length, longMA.length);
-        const lastShort = shortMA[n - 1];
-        const lastLong = longMA[n - 1];
-        const prevShort = shortMA[n - 2];
-        const prevLong = longMA[n - 2];
-
-        if (prevShort < prevLong && lastShort > lastLong) {
-          return 'Golden Cross (Bullish signal) 🟢';
-        } else if (prevShort > prevLong && lastShort < lastLong) {
-          return 'Death Cross (Bearish signal) 🔴';
-        } else {
-          return 'No major cross detected ⚪';
-        }
+      // Perform sentiment analysis on news headlines
+      const analyzeSentiment = (headlines) => {
+        const sentiment = new Sentiment();
+        const scores = headlines.map((headline) => sentiment.analyze(headline).score);
+        const averageScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+        return averageScore; // Return average sentiment score
       };
 
       // Simple linear regression for prediction
-      const predictNextPrice = (prices) => {
+      const predictNextPrice = (prices, sentimentScore) => {
         const x = Array.from({ length: prices.length }, (_, i) => i);
         const y = prices;
 
@@ -82,8 +81,10 @@ module.exports = {
         const intercept = (sumY - slope * sumX) / n;
 
         const nextX = prices.length;
-        const predictedPrice = slope * nextX + intercept;
+        let predictedPrice = slope * nextX + intercept;
 
+        // Adjust prediction based on sentiment score
+        predictedPrice *= 1 + sentimentScore * 0.05; // Adjust by 5% per sentiment point
         return predictedPrice;
       };
 
@@ -94,12 +95,12 @@ module.exports = {
         return message.channel.send('Not enough data for deep analysis. Please try another stock symbol.');
       }
 
-      // Analyze stock
-      const shortMA = movingAverage(prices, 20); // 20-day MA
-      const longMA = movingAverage(prices, 50);  // 50-day MA
+      // Fetch news headlines and analyze sentiment
+      const headlines = await fetchNewsHeadlines(stockSymbol);
+      const sentimentScore = headlines.length > 0 ? analyzeSentiment(headlines) : 0;
 
-      const crossSignal = detectCross(shortMA, longMA);
-      const predictedNextPrice = predictNextPrice(prices);
+      // Analyze stock prices
+      const predictedNextPrice = predictNextPrice(prices, sentimentScore);
       const lastPrice = prices[prices.length - 1];
       const trend = predictedNextPrice > lastPrice ? 'Upward 📈' : 'Downward 📉';
 
@@ -113,7 +114,7 @@ module.exports = {
 - **Predicted Next Price**: $${predictedNextPrice.toFixed(2)}
 - **Trend Prediction**: ${trend}
 - **Percentage Change**: ${percentageChange.toFixed(2)}%
-- **Crossover Signal**: ${crossSignal}
+- **News Sentiment Score**: ${sentimentScore.toFixed(2)}
       `;
 
       message.channel.send(response);
