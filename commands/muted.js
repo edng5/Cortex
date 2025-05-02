@@ -8,6 +8,21 @@ const { EmbedBuilder } = require('discord.js'); // For sending embedded logs
 const mutedUsers = new Map(); // Tracks when a user mutes themselves
 const dailyMuteTime = new Map(); // Tracks total mute time for each user in a day
 
+/**
+ * Converts milliseconds to a formatted time string (HH:MM:SS).
+ * 
+ * @param {number} ms - The duration in milliseconds.
+ * @returns {string} - The formatted time string.
+ */
+function formatTime(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
 module.exports = {
   name: 'muted', // Not a direct command but a module for mute-related functionality
   description: 'Tracks mute events and provides commands to check mute status.',
@@ -75,15 +90,15 @@ module.exports = {
     if (action === 'muted') {
       embed.addFields(
         { name: 'Action', value: 'Muted', inline: true },
-        { name: 'Cumulative Mute Time Today', value: `${Math.floor(totalMuteTime / 1000)} seconds`, inline: true }
+        { name: 'Cumulative Mute Time Today', value: formatTime(totalMuteTime), inline: true }
       );
     }
 
     if (action === 'unmuted' && duration !== null) {
       embed.addFields(
         { name: 'Action', value: 'Unmuted', inline: true },
-        { name: 'Current Mute Duration', value: `${Math.floor(duration / 1000)} seconds`, inline: true },
-        { name: 'Cumulative Mute Time Today', value: `${Math.floor(totalMuteTime / 1000)} seconds`, inline: true }
+        { name: 'Current Mute Duration', value: formatTime(duration), inline: true },
+        { name: 'Cumulative Mute Time Today', value: formatTime(totalMuteTime), inline: true }
       );
     }
 
@@ -109,7 +124,7 @@ module.exports = {
     }
 
     const totalMuteTime = dailyMuteTime.get(member.id) || 0;
-    return message.channel.send(`${username} has been muted for a total of ${Math.floor(totalMuteTime / 1000)} seconds today.`);
+    return message.channel.send(`${username} has been muted for a total of ${formatTime(totalMuteTime)} today.`);
   },
 
   /**
@@ -132,7 +147,7 @@ module.exports = {
 
     if (mutedUsers.has(member.id)) {
       const mutedDuration = Date.now() - mutedUsers.get(member.id);
-      return message.channel.send(`${username} has been muted for ${Math.floor(mutedDuration / 1000)} seconds.`);
+      return message.channel.send(`${username} has been muted for ${formatTime(mutedDuration)}.`);
     } else {
       return message.channel.send(`${username} is not currently muted.`);
     }

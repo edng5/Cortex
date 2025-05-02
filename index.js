@@ -29,11 +29,33 @@ for (const file of commandFiles) {
   client.commands.set(command.name, command);
 }
 
+// PokeNewsRSS and SlightlyDelayedDrops Flags
+const pokeNewsEnabled = false; // Set to true to enable PokeNewsRSS
+const slightlyDelayedDropsEnabled = false; // Set to true to enable SlightlyDelayedDrops
+
 // Event: Bot is ready
 client.on('ready', () => {
   console.log(`${client.user.tag} is online.`);
-  pokeNewsRSS.startPokeNewsFeed(client); // Start the PokeNews feed
-  slightlyDelayedDrops.startMonitoring(client); // Start monitoring SlightlyDelayedDrops
+
+  // Start the PokeNews feed with error handling
+  if (pokeNewsEnabled) {
+  try {
+    pokeNewsRSS.startPokeNewsFeed(client);
+    console.log('PokeNewsRSS started successfully.');
+  } catch (error) {
+    console.error('Error starting PokeNewsRSS:', error.message);
+  }
+}
+
+if (slightlyDelayedDropsEnabled) {
+  // Start monitoring SlightlyDelayedDrops with error handling
+  try {
+    slightlyDelayedDrops.startMonitoring(client);
+    console.log('SlightlyDelayedDrops monitoring started successfully.');
+  } catch (error) {
+    console.error('Error starting SlightlyDelayedDrops monitoring:', error.message);
+  }
+}
 });
 
 // Event: Handle messages
@@ -104,7 +126,11 @@ client.on('messageCreate', async (message) => {
 
 // Event: Handle voice state updates
 client.on('voiceStateUpdate', (oldState, newState) => {
-  muted.handleVoiceStateUpdate(oldState, newState, client);
+  try {
+    muted.handleVoiceStateUpdate(oldState, newState, client);
+  } catch (error) {
+    console.error('Error handling voice state update:', error.message);
+  }
 });
 
 // Login to Discord
