@@ -5,6 +5,7 @@ const muted = require('./commands/muted.js');
 const pokeNewsRSS = require('./commands/PokeNewsRSS.js');
 const slightlyDelayedDrops = require('./commands/SlightlyDelayedDrops.js'); // Import SlightlyDelayedDrops.js
 const cortexCommand = require('./commands/cortex.js'); // Import the Cortex command
+const gradeCard = require('./commands/gradeCard.js'); // Import the GradeCard command
 
 // Initialize the bot
 const client = new Client({
@@ -28,6 +29,8 @@ for (const file of commandFiles) {
   const command = require(`./commands/${file}`);
   client.commands.set(command.name, command);
 }
+
+client.commands.set(gradeCard.name, gradeCard); // Add the GradeCard command
 
 // PokeNewsRSS and SlightlyDelayedDrops Flags
 const pokeNewsEnabled = false; // Set to true to enable PokeNewsRSS
