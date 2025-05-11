@@ -77,7 +77,7 @@ module.exports = {
       console.log(`Back image match: ${backMatch}%`);
 
       const percentMatch = ((frontMatch + backMatch) / 2).toFixed(2);
-      const finalGrade = ((frontMatch + backMatch) / 2 / 10).toFixed(1);
+      const finalGrade = (Math.floor(((frontMatch + backMatch) / 2 / 10) * 2) / 2).toFixed(1);
       console.log(`Final grade calculated: ${percentMatch}%`);
 
       return message.reply(`Your "**${officialCardName}**" has been graded: **PSA ${finalGrade}**.`);
