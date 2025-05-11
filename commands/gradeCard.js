@@ -4,7 +4,23 @@ const {Jimp, diff} = require('jimp'); // Import Jimp
 const fs = require('fs');
 const cheerio = require('cheerio'); // Import cheerio for web scraping
 
-// TODO: preprocess the input images by cropping and rotating to match the official card image. Properly scrape the PSA prices from PriceCharting.com.
+// TODO: preprocess the input images by cropping and rotating to match the official card image. Add EBAY API KEY.
+
+// Helper function: Convert USD to CAD using ExchangeRate-API
+const convertToCAD = async (usdPrice) => {
+  const url = `https://api.exchangerate-api.com/v4/latest/USD`;
+
+  try {
+    const response = await axios.get(url);
+    const exchangeRate = response.data.rates.CAD;
+    const amountInCAD = (usdPrice * exchangeRate).toFixed(2);
+    console.log(`Converted ${usdPrice} USD to ${amountInCAD} CAD at rate ${exchangeRate}`);
+    return `$${amountInCAD} CAD`;
+  } catch (error) {
+    console.error('Error fetching exchange rate:', error.message);
+    return `$${usdPrice.toFixed(2)} USD`; // Fallback to USD if conversion fails
+  }
+};
 
 module.exports = {
   name: '!grade_card',
@@ -81,13 +97,16 @@ module.exports = {
       const finalGrade = (Math.floor(((frontMatch + backMatch) / 2 / 10) * 2) / 2).toFixed(1);
       console.log(`Final grade calculated: ${percentMatch}%`);
 
-      console.log('Fetching PSA price data...');
-      const { ungradedPrice, gradedPrice } = await scrapePSAPrice(officialCardName, finalGrade);
+      console.log('Fetching ungraded price...');
+      const ungradedPrice = await fetchUngradedPrice(cardName, cardNumber);
+
+      console.log('Fetching PSA price...');
+      const psaPrice = await fetchPSAPrice(officialCardName, finalGrade);
 
       return message.reply(
         `Your "**${officialCardName}**" has been graded: **PSA ${finalGrade}**.\n` +
         `Ungraded value: **${ungradedPrice}**.\n` +
-        `Estimated value (PSA ${finalGrade}): **${gradedPrice}**.`
+        `Estimated value (PSA ${finalGrade}): **${psaPrice}**.`
       );
     // } catch (error) {
     //   console.error('Error grading card:', error.message);
@@ -165,44 +184,71 @@ async function compareImages(image1, image2) {
   return similarity * 100; // Convert to percentage
 }
 
-// Helper function: Scrape PSA prices from PriceCharting.com
-async function scrapePSAPrice(cardName, grade) {
+// Helper function: Fetch ungraded price using PokemonTCG API
+async function fetchUngradedPrice(cardName, cardNumber) {
   try {
-    const searchUrl = `https://www.pricecharting.com/search-products?type=prices&q=${encodeURIComponent(cardName)}#full-prices`;
-    console.log(`Scraping PSA prices from URL: ${searchUrl}`);
+    const apiUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cardName)}" number:"${encodeURIComponent(cardNumber)}"`;
+    console.log(`Fetching ungraded price from PokemonTCG API: ${apiUrl}`);
 
-    const response = await axios.get(searchUrl);
-    const $ = cheerio.load(response.data);
+    const response = await axios.get(apiUrl);
+    if (response.data.data && response.data.data.length > 0) {
+      const cardData = response.data.data[0];
 
-    // Find the ungraded price
-    const ungradedPriceElement = $('#full-prices tr')
-      .filter((_, el) => $(el).find('td').first().text().trim() === 'Ungraded')
-      .find('.price.js-price');
-    const ungradedPrice = ungradedPriceElement.length > 0 ? ungradedPriceElement.text().trim() : 'N/A';
+      // Extract ungraded price from tcgplayer.prices
+      const ungradedPrice =
+        cardData.tcgplayer?.prices?.normal?.market || // Normal card price
+        cardData.tcgplayer?.prices?.holofoil?.market || // Holofoil card price
+        cardData.tcgplayer?.prices?.reverseHolofoil?.market || // Reverse Holofoil card price
+        'N/A';
 
-    // Normalize the grade for matching (remove decimals for whole numbers like 8.0, 9.0)
-    const normalizedGrade = grade.includes('.') ? grade : `${grade}.0`;
+      console.log(`Fetched ungraded price: ${ungradedPrice}`);
 
-    // Find the price for the specific grade
-    let gradedPrice = 'N/A';
-    if (grade === '10') {
-      const psa10PriceElement = $('#full-prices tr')
-        .filter((_, el) => $(el).find('td').first().text().trim() === 'PSA 10')
-        .find('.price.js-price');
-      gradedPrice = psa10PriceElement.length > 0 ? psa10PriceElement.text().trim() : 'N/A';
+      if (ungradedPrice !== 'N/A') {
+        return await convertToCAD(ungradedPrice);
+      } else {
+        return 'N/A';
+      }
     } else {
-      const gradePriceElement = $('#full-prices tr')
-        .filter((_, el) => $(el).find('td').first().text().trim() === `Grade ${normalizedGrade}`)
-        .find('.price.js-price');
-      gradedPrice = gradePriceElement.length > 0 ? gradePriceElement.text().trim() : 'N/A';
+      console.log('Card not found in PokemonTCG API.');
+      return 'N/A';
     }
-
-    console.log(`Scraped ungraded price: ${ungradedPrice}`);
-    console.log(`Scraped PSA ${grade} price: ${gradedPrice}`);
-
-    return { ungradedPrice, gradedPrice };
   } catch (error) {
-    console.error('Error scraping PSA prices:', error.message);
-    return { ungradedPrice: 'N/A', gradedPrice: 'N/A' };
+    console.error('Error fetching ungraded price:', error.message);
+    return 'N/A';
+  }
+}
+
+// Helper function: Fetch PSA price using eBay API
+async function fetchPSAPrice(cardName, grade) {
+  try {
+    const ebayApiKey = process.env.EBAY_API_KEY; // Replace with your eBay API key
+    const searchQuery = `${cardName} PSA ${grade}`;
+    const ebayApiUrl = `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${encodeURIComponent(searchQuery)}&limit=1`;
+
+    console.log(`Fetching PSA price from eBay API: ${ebayApiUrl}`);
+
+    const response = await axios.get(ebayApiUrl, {
+      headers: {
+        Authorization: `Bearer ${ebayApiKey}`,
+      },
+    });
+
+    if (response.data.itemSummaries && response.data.itemSummaries.length > 0) {
+      const item = response.data.itemSummaries[0];
+      const psaPrice = item.price?.value || 'N/A';
+      console.log(`Fetched PSA price: ${psaPrice}`);
+
+      if (psaPrice !== 'N/A') {
+        return await convertToCAD(psaPrice);
+      } else {
+        return 'N/A';
+      }
+    } else {
+      console.log('No PSA price found on eBay.');
+      return 'N/A';
+    }
+  } catch (error) {
+    console.error('Error fetching PSA price:', error.message);
+    return 'N/A';
   }
 }
