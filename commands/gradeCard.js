@@ -76,10 +76,11 @@ module.exports = {
       const backMatch = await compareImages(backImage, await getBackCardTemplate(officialImageMetadata));
       console.log(`Back image match: ${backMatch}%`);
 
-      const finalGrade = ((frontMatch + backMatch) / 2).toFixed(2);
-      console.log(`Final grade calculated: ${finalGrade}%`);
+      const percentMatch = ((frontMatch + backMatch) / 2).toFixed(2);
+      const finalGrade = ((frontMatch + backMatch) / 2 / 10).toFixed(1);
+      console.log(`Final grade calculated: ${percentMatch}%`);
 
-      return message.reply(`The card "${officialCardName}" has been graded: ${finalGrade}% match.`);
+      return message.reply(`Your "**${officialCardName}**" has been graded: **PSA ${finalGrade}**.`);
     } catch (error) {
       console.error('Error grading card:', error.message);
       return message.reply('An error occurred while grading the card. Please try again.');
