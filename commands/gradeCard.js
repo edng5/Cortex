@@ -2,8 +2,9 @@ const axios = require('axios');
 const sharp = require('sharp'); // Import sharp
 const {Jimp, diff} = require('jimp'); // Import Jimp
 const fs = require('fs');
+const cheerio = require('cheerio'); // Import cheerio for web scraping
 
-// TODO: preprocess the input images by cropping and rotating to match the official card image
+// TODO: preprocess the input images by cropping and rotating to match the official card image. Properly scrape the PSA prices from PriceCharting.com.
 
 module.exports = {
   name: '!grade_card',
@@ -33,7 +34,7 @@ module.exports = {
     console.log('Card name:', cardName);
     console.log('Card number:', cardNumber);
 
-    try {
+    // try {
       const apiUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cardName)}" number:${encodeURIComponent(cardNumber)}`;
       console.log('Fetching card data from API:', apiUrl);
 
@@ -80,11 +81,18 @@ module.exports = {
       const finalGrade = (Math.floor(((frontMatch + backMatch) / 2 / 10) * 2) / 2).toFixed(1);
       console.log(`Final grade calculated: ${percentMatch}%`);
 
-      return message.reply(`Your "**${officialCardName}**" has been graded: **PSA ${finalGrade}**.`);
-    } catch (error) {
-      console.error('Error grading card:', error.message);
-      return message.reply('An error occurred while grading the card. Please try again.');
-    }
+      console.log('Fetching PSA price data...');
+      const { ungradedPrice, gradedPrice } = await scrapePSAPrice(officialCardName, finalGrade);
+
+      return message.reply(
+        `Your "**${officialCardName}**" has been graded: **PSA ${finalGrade}**.\n` +
+        `Ungraded value: **${ungradedPrice}**.\n` +
+        `Estimated value (PSA ${finalGrade}): **${gradedPrice}**.`
+      );
+    // } catch (error) {
+    //   console.error('Error grading card:', error.message);
+    //   return message.reply('An error occurred while grading the card. Please try again.');
+    // }
   },
 };
 
@@ -155,4 +163,46 @@ async function compareImages(image1, image2) {
   const similarity = 1 - img_diff.percent;
   console.log(`Image similarity: ${(similarity * 100).toFixed(2)}%`);
   return similarity * 100; // Convert to percentage
+}
+
+// Helper function: Scrape PSA prices from PriceCharting.com
+async function scrapePSAPrice(cardName, grade) {
+  try {
+    const searchUrl = `https://www.pricecharting.com/search-products?type=prices&q=${encodeURIComponent(cardName)}#full-prices`;
+    console.log(`Scraping PSA prices from URL: ${searchUrl}`);
+
+    const response = await axios.get(searchUrl);
+    const $ = cheerio.load(response.data);
+
+    // Find the ungraded price
+    const ungradedPriceElement = $('#full-prices tr')
+      .filter((_, el) => $(el).find('td').first().text().trim() === 'Ungraded')
+      .find('.price.js-price');
+    const ungradedPrice = ungradedPriceElement.length > 0 ? ungradedPriceElement.text().trim() : 'N/A';
+
+    // Normalize the grade for matching (remove decimals for whole numbers like 8.0, 9.0)
+    const normalizedGrade = grade.includes('.') ? grade : `${grade}.0`;
+
+    // Find the price for the specific grade
+    let gradedPrice = 'N/A';
+    if (grade === '10') {
+      const psa10PriceElement = $('#full-prices tr')
+        .filter((_, el) => $(el).find('td').first().text().trim() === 'PSA 10')
+        .find('.price.js-price');
+      gradedPrice = psa10PriceElement.length > 0 ? psa10PriceElement.text().trim() : 'N/A';
+    } else {
+      const gradePriceElement = $('#full-prices tr')
+        .filter((_, el) => $(el).find('td').first().text().trim() === `Grade ${normalizedGrade}`)
+        .find('.price.js-price');
+      gradedPrice = gradePriceElement.length > 0 ? gradePriceElement.text().trim() : 'N/A';
+    }
+
+    console.log(`Scraped ungraded price: ${ungradedPrice}`);
+    console.log(`Scraped PSA ${grade} price: ${gradedPrice}`);
+
+    return { ungradedPrice, gradedPrice };
+  } catch (error) {
+    console.error('Error scraping PSA prices:', error.message);
+    return { ungradedPrice: 'N/A', gradedPrice: 'N/A' };
+  }
 }
